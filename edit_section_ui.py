@@ -8,48 +8,8 @@
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
 
-from PySide6.QtCore import (
-    QCoreApplication,
-    QDate,
-    QDateTime,
-    QLocale,
-    QMetaObject,
-    QObject,
-    QPoint,
-    QRect,
-    QSize,
-    Qt,
-    QTime,
-    QUrl,
-)
-from PySide6.QtGui import (
-    QBrush,
-    QColor,
-    QConicalGradient,
-    QCursor,
-    QFont,
-    QFontDatabase,
-    QGradient,
-    QIcon,
-    QImage,
-    QKeySequence,
-    QLinearGradient,
-    QPainter,
-    QPalette,
-    QPixmap,
-    QRadialGradient,
-    QTransform,
-)
-from PySide6.QtWidgets import (
-    QApplication,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QSizePolicy,
-    QTextEdit,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtCore import QCoreApplication, QMetaObject
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QTextEdit, QVBoxLayout
 
 
 class Ui_EditSectionWidget(object):
@@ -75,10 +35,10 @@ class Ui_EditSectionWidget(object):
 
         self.horizontalLayout = QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
-        self.pushButton = QPushButton(EditSectionWidget)
-        self.pushButton.setObjectName("pushButton")
+        self.edit_button = QPushButton(EditSectionWidget)
+        self.edit_button.setObjectName("edit_button")
 
-        self.horizontalLayout.addWidget(self.pushButton)
+        self.horizontalLayout.addWidget(self.edit_button)
 
         self.confirm_button = QPushButton(EditSectionWidget)
         self.confirm_button.setObjectName("confirm_button")
@@ -104,7 +64,7 @@ class Ui_EditSectionWidget(object):
         self.label.setText(
             QCoreApplication.translate("EditSectionWidget", "Section: ", None)
         )
-        self.pushButton.setText(
+        self.edit_button.setText(
             QCoreApplication.translate("EditSectionWidget", "Edit", None)
         )
         self.confirm_button.setText(

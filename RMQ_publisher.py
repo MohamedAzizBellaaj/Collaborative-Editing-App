@@ -1,11 +1,14 @@
-from pika.adapters.blocking_connection import BlockingChannel
+import pika
 
 
 class RMQPublisher:
-    def __init__(self, channel: BlockingChannel):
-        self.channel = channel
+    def __init__(self):
+        self.connection = pika.BlockingConnection(
+            pika.ConnectionParameters(host="localhost")
+        )
+        self.channel = self.connection.channel()
 
-    def send_message(self, message, queue="", exchange=""):
+    def basic_publish(self, message, queue="", exchange=""):
         return self.channel.basic_publish(
             exchange=exchange, routing_key=queue, body=message
         )

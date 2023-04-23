@@ -11,17 +11,17 @@ class RMQConnection:
     def __init__(self):
         self.client_id = str(uuid.uuid4())
         self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters("localhost")
+            pika.ConnectionParameters(host="localhost")
         )
         self.channel = self.connection.channel()
-        self.consumer = RMQConsumer(self.channel)
-        self.publisher = RMQPublisher(self.channel)
+        self.consumer = RMQConsumer()
+        self.publisher = RMQPublisher()
 
     def start_consume(self):
         self.consumer.start()
 
-    def queue_declare(self, queue, auto_delete=False, **args):
-        name = self.channel.queue_declare(queue=queue, auto_delete=auto_delete, **args)
+    def queue_declare(self, queue, durable=False, auto_delete=False, **args):
+        name = self.channel.queue_declare(queue=queue, durable=durable,auto_delete=auto_delete, **args)
         return name.method.queue
 
     def exchange_declare(self, exchange, exchange_type):
