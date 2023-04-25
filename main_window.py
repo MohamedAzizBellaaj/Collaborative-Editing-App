@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QTextEdit, QVBoxLayout, QWidget
 
-from edit_section import EditSectionWidget
 from RMQ_connection import RMQConnection
+from section import SectionWidget
 
 
 class MainWindow(QMainWindow):
@@ -10,21 +10,24 @@ class MainWindow(QMainWindow):
         self.app = app
         self.connection = connection
         self.setup_ui()
-        self.edit_section1.update_total_text.connect(self.update_text_1)
-        self.edit_section2.update_total_text.connect(self.update_text_2)
-        self.edit_section1.text_area.textChanged.connect(self.update_total_text)
-        self.edit_section2.text_area.textChanged.connect(self.update_total_text)
+        for section in self.sections:
+            section.update_total_text.connect(self.update_text)
+        self.sections[0].text_area.textChanged.connect(self.update_total_text)
+        self.sections[1].text_area.textChanged.connect(self.update_total_text)
         self.connection.start_consume()
 
     def setup_ui(self):
         self.setWindowTitle(f"Client {self.connection.client_id}")
-        self.edit_section1 = EditSectionWidget(self.connection, 1)
-        self.edit_section2 = EditSectionWidget(self.connection, 2)
+        number_sections = 3
+        self.sections = []
+        for i in range(number_sections):
+            section = SectionWidget(self.connection, i + 1)
+            self.sections.append(section)
         self.total_text = QTextEdit()
         self.total_text.setReadOnly(True)
         v_layout = QVBoxLayout()
-        v_layout.addWidget(self.edit_section1)
-        v_layout.addWidget(self.edit_section2)
+        for section in self.sections:
+            v_layout.addWidget(section)
         h_layout = QHBoxLayout()
         h_layout.addLayout(v_layout)
         h_layout.addWidget(self.total_text)
@@ -32,22 +35,23 @@ class MainWindow(QMainWindow):
         widget.setLayout(h_layout)
         self.setCentralWidget(widget)
 
-    def update_text_1(self, value):
-        self.total_text.setText(
-            f"{value}\n{self.edit_section2.text_area.toPlainText()}"
-        )
-
-    def update_text_2(self, value):
-        self.total_text.setText(
-            f"{self.edit_section1.text_area.toPlainText()}\n{value}"
-        )
+    def update_text(self, value, id):
+        index = id - 1
+        text = ""
+        for num, section in enumerate(self.sections):
+            if num == index:
+                text += f"{value}\n"
+            else:
+                text += f"{section.text_area.toPlainText()}\n"
+        self.total_text.setText(text)
 
     def update_total_text(self):
-        self.total_text.setText(
-            f"{self.edit_section1.text_area.toPlainText()}\n{self.edit_section2.text_area.toPlainText()}"
-        )
+        text = ""
+        for section in self.sections:
+            text += f"{section.text_area.toPlainText()}\n"
+        self.total_text.setText(text)
 
     def closeEvent(self, event):
-        self.edit_section1.clean_up.emit()
-        self.edit_section2.clean_up.emit()
+        for section in self.sections:
+            section.clean_up.emit()
         event.accept()

@@ -1,16 +1,15 @@
 import json
-from sqlite3 import connect
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
 
-from edit_section_ui import Ui_EditSectionWidget
 from RMQ_connection import RMQConnection
+from section_ui import Ui_SectionWidget
 
 
-class EditSectionWidget(QWidget, Ui_EditSectionWidget):
+class SectionWidget(QWidget, Ui_SectionWidget):
     update_ui = Signal(str)
-    update_total_text = Signal(str)
+    update_total_text = Signal(str, int)
     clean_up = Signal()
 
     def __init__(self, connection: RMQConnection, index: int):
@@ -25,7 +24,7 @@ class EditSectionWidget(QWidget, Ui_EditSectionWidget):
 
         # Declare connection/queues/exchanges
         self.connection = connection
-        self.exchange = f"exchange.{self.identifier}"
+        self.exchange = f"{self.identifier}.exchange"
         self.update_queue = f"{self.connection.client_id}.{self.identifier}"
         self.occupied_by_queue = f"{self.identifier}.occupied_by"
 
@@ -54,8 +53,7 @@ class EditSectionWidget(QWidget, Ui_EditSectionWidget):
             "message": self.text_area.toPlainText(),
         }
         self.connection.publisher.basic_publish(
-            json.dumps(payload),
-            exchange=self.exchange
+            json.dumps(payload), exchange=self.exchange
         )
 
     def request_edit(self):
@@ -68,23 +66,29 @@ class EditSectionWidget(QWidget, Ui_EditSectionWidget):
             self.occupied_by_queue, auto_ack=False
         )
         self.connection.basic_nack(method.delivery_tag)
-        if body is None:
-            print("body is None")
-        if body is not None:
-            body_payload = json.loads(body)
-            if body_payload["client"] != self.connection.client_id:
-                self.label.setText(f"{self.identifier} occupied by\n{body_payload['client']}")
-                self.edit_button.setDisabled(True)
-                return
-        self.update_editing_user_on_edit()
+        body_payload = json.loads(body)
+        if body_payload["client"] != self.connection.client_id:
+            self.label.setText(
+                f"{self.identifier} occupied by\n{body_payload['client']}"
+            )
+            self.edit_button.setDisabled(True)
+        else:
+            body_payload["lock"] = True
+            self.connection.publisher.basic_publish(
+                json.dumps(body_payload), exchange=self.exchange
+            )
+            self.update_editing_user_on_edit()
 
     def confirm_edit(self):
         method, properties, body = self.connection.basic_get(
             self.occupied_by_queue, auto_ack=True
         )
-        release_lock_payload = {"client": self.connection.client_id, "release_lock": True}
-        self.update_editing_user_on_confirm()
-        self.connection.publisher.basic_publish(json.dumps(release_lock_payload), exchange=self.exchange)
+        if body:
+            release_lock_payload = {"client": self.connection.client_id, "lock": False}
+            self.update_editing_user_on_confirm()
+            self.connection.publisher.basic_publish(
+                json.dumps(release_lock_payload), exchange=self.exchange
+            )
 
     def update_editing_user_on_edit(self):
         self.label.setText(f"{self.identifier} occupied by you!")
@@ -96,7 +100,7 @@ class EditSectionWidget(QWidget, Ui_EditSectionWidget):
         self.label.setText(f"{self.identifier}")
         self.text_area.setReadOnly(True)
         self.toggle_edit_confirm_button_state()
-        
+
     def toggle_edit_confirm_button_state(self):
         state = self.edit_button.isEnabled()
         self.edit_button.setEnabled(not state)
@@ -104,19 +108,24 @@ class EditSectionWidget(QWidget, Ui_EditSectionWidget):
 
     def on_ui_update(self, payload: str):
         payload = json.loads(payload)
-        if "release_lock" in payload:
-            self.label.setText(self.identifier)
-            self.edit_button.setEnabled(True)
-            return
         if payload["client"] == self.connection.client_id:
             return
-        else:
+        if "lock" in payload:
+            if payload["lock"]:
+                self.label.setText(
+                    f"{self.identifier} occupied by\n{payload['client']}"
+                )
+                self.edit_button.setDisabled(True)
+            else:
+                self.label.setText(self.identifier)
+                self.edit_button.setEnabled(True)
+        if "message" in payload:
             self.label.setText(f"{self.identifier} occupied by:\n{payload['client']}")
             self.edit_button.setDisabled(True)
             self.text_area.blockSignals(True)
             self.text_area.setText(payload["message"])
             self.text_area.blockSignals(False)
-            self.update_total_text.emit(self.text_area.toPlainText())
-            
+            self.update_total_text.emit(self.text_area.toPlainText(), self.index)
+
     def on_clean_up(self):
         self.confirm_edit()
