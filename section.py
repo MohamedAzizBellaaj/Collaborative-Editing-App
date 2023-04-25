@@ -22,7 +22,7 @@ class SectionWidget(QWidget, Ui_SectionWidget):
         self.text_area.setReadOnly(True)
         self.confirm_button.setDisabled(True)
 
-        # Declare connection/queues/exchanges
+        # Declare connection/exchange/queues
         self.connection = connection
         self.exchange = f"{self.identifier}.exchange"
         self.update_queue = f"{self.connection.client_id}.{self.identifier}"
@@ -83,12 +83,14 @@ class SectionWidget(QWidget, Ui_SectionWidget):
         method, properties, body = self.connection.basic_get(
             self.occupied_by_queue, auto_ack=True
         )
-        if body:
-            release_lock_payload = {"client": self.connection.client_id, "lock": False}
-            self.update_editing_user_on_confirm()
-            self.connection.publisher.basic_publish(
-                json.dumps(release_lock_payload), exchange=self.exchange
-            )
+        if body is not None:
+            body_payload = json.loads(str(body, "utf-8"))
+            if body_payload["client"] == self.connection.client_id:
+                release_lock_payload = {"client": self.connection.client_id, "lock": False}
+                self.update_editing_user_on_confirm()
+                self.connection.publisher.basic_publish(
+                    json.dumps(release_lock_payload), exchange=self.exchange
+                )
 
     def update_editing_user_on_edit(self):
         self.label.setText(f"{self.identifier} occupied by you!")

@@ -37,9 +37,9 @@ class RMQConnection:
     def bind_queue_exchange(self, queue, exchange):
         return self.channel.queue_bind(exchange=exchange, queue=queue)
 
-    def declare_bind_queue_exchange(self, queue, exchange, auto_delete=False):
+    def declare_bind_queue_exchange(self, queue, exchange, auto_delete=False, exchange_type=ExchangeType.fanout):
         self.queue_declare(queue=queue, auto_delete=auto_delete)
-        self.exchange_declare(exchange=exchange, exchange_type=ExchangeType.fanout)
+        self.exchange_declare(exchange=exchange, exchange_type=exchange_type)
         self.bind_queue_exchange(exchange=exchange, queue=queue)
 
     def basic_get(self, queue, **args):
