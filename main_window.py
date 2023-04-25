@@ -46,3 +46,8 @@ class MainWindow(QMainWindow):
         self.total_text.setText(
             f"{self.edit_section1.text_area.toPlainText()}\n{self.edit_section2.text_area.toPlainText()}"
         )
+
+    def closeEvent(self, event):
+        self.edit_section1.clean_up.emit()
+        self.edit_section2.clean_up.emit()
+        event.accept()

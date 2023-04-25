@@ -1,7 +1,6 @@
 import json
-from tkinter import N
+from sqlite3 import connect
 
-import pika
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
 
@@ -10,18 +9,19 @@ from RMQ_connection import RMQConnection
 
 
 class EditSectionWidget(QWidget, Ui_EditSectionWidget):
-    update_text_area = Signal(str)
+    update_ui = Signal(str)
     update_total_text = Signal(str)
+    clean_up = Signal()
 
     def __init__(self, connection: RMQConnection, index: int):
         super().__init__()
         # Setup Ui
         self.setupUi(self)
         self.index = index
-        self.identifier = f"section{self.index}"
+        self.identifier = f"Section {self.index}"
         self.label.setText(self.identifier)
         self.text_area.setReadOnly(True)
-        self.confirm_button.setEnabled(False)
+        self.confirm_button.setDisabled(True)
 
         # Declare connection/queues/exchanges
         self.connection = connection
@@ -40,14 +40,13 @@ class EditSectionWidget(QWidget, Ui_EditSectionWidget):
 
         # Connecting Qt signals to slots
         self.text_area.textChanged.connect(self.on_edit_section)
-        self.update_text_area.connect(self.on_update_ui)
+        self.update_ui.connect(self.on_ui_update)
+        self.clean_up.connect(self.on_clean_up)
         self.edit_button.clicked.connect(self.request_edit)
         self.confirm_button.clicked.connect(self.confirm_edit)
 
     def on_consume(self, ch, method, properties, body):
-        payload = json.loads(body)
-        if payload["client"] != self.connection.client_id:
-            self.update_text_area.emit(json.dumps(payload))
+        self.update_ui.emit(str(body, "utf-8"))
 
     def on_edit_section(self):
         payload = {
@@ -56,15 +55,8 @@ class EditSectionWidget(QWidget, Ui_EditSectionWidget):
         }
         self.connection.publisher.basic_publish(
             json.dumps(payload),
-            exchange=self.exchange,
+            exchange=self.exchange
         )
-
-    def on_update_ui(self, payload: str):
-        payload = json.loads(payload)
-        self.text_area.blockSignals(True)
-        self.text_area.setText(payload["message"])
-        self.text_area.blockSignals(False)
-        self.update_total_text.emit(self.text_area.toPlainText())
 
     def request_edit(self):
         payload = {"client": self.connection.client_id}
@@ -76,26 +68,55 @@ class EditSectionWidget(QWidget, Ui_EditSectionWidget):
             self.occupied_by_queue, auto_ack=False
         )
         self.connection.basic_nack(method.delivery_tag)
-        print(body, self.connection.client_id)
+        if body is None:
+            print("body is None")
         if body is not None:
             body_payload = json.loads(body)
             if body_payload["client"] != self.connection.client_id:
-                print(f"Its {body_payload['client']} turn")
+                self.label.setText(f"{self.identifier} occupied by\n{body_payload['client']}")
+                self.edit_button.setDisabled(True)
                 return
-        # self.on_update_ui()
-        self.text_area.setReadOnly(False)
-        self.text_area.setFocus()
-        self.toggle_edit_confirm_button_state()
+        self.update_editing_user_on_edit()
 
     def confirm_edit(self):
         method, properties, body = self.connection.basic_get(
             self.occupied_by_queue, auto_ack=True
         )
-        print(body, self.connection.client_id, "Released lock!")
-        self.text_area.setReadOnly(True)
+        release_lock_payload = {"client": self.connection.client_id, "release_lock": True}
+        self.update_editing_user_on_confirm()
+        self.connection.publisher.basic_publish(json.dumps(release_lock_payload), exchange=self.exchange)
+
+    def update_editing_user_on_edit(self):
+        self.label.setText(f"{self.identifier} occupied by you!")
+        self.text_area.setReadOnly(False)
+        self.text_area.setFocus()
         self.toggle_edit_confirm_button_state()
 
+    def update_editing_user_on_confirm(self):
+        self.label.setText(f"{self.identifier}")
+        self.text_area.setReadOnly(True)
+        self.toggle_edit_confirm_button_state()
+        
     def toggle_edit_confirm_button_state(self):
         state = self.edit_button.isEnabled()
         self.edit_button.setEnabled(not state)
         self.confirm_button.setEnabled(state)
+
+    def on_ui_update(self, payload: str):
+        payload = json.loads(payload)
+        if "release_lock" in payload:
+            self.label.setText(self.identifier)
+            self.edit_button.setEnabled(True)
+            return
+        if payload["client"] == self.connection.client_id:
+            return
+        else:
+            self.label.setText(f"{self.identifier} occupied by:\n{payload['client']}")
+            self.edit_button.setDisabled(True)
+            self.text_area.blockSignals(True)
+            self.text_area.setText(payload["message"])
+            self.text_area.blockSignals(False)
+            self.update_total_text.emit(self.text_area.toPlainText())
+            
+    def on_clean_up(self):
+        self.confirm_edit()
