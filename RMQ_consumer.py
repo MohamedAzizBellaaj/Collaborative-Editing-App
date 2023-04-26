@@ -1,6 +1,5 @@
-from PySide6.QtCore import QThread
-
 import pika
+from PySide6.QtCore import QThread
 
 
 class RMQConsumer(QThread):
