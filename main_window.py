@@ -3,6 +3,8 @@ from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QTextEdit, QVBoxLayout, 
 from RMQ_connection import RMQConnection
 from section import SectionWidget
 
+NUMBER_OF_SECTIONS = 3
+
 
 class MainWindow(QMainWindow):
     def __init__(self, app, connection: RMQConnection):
@@ -18,9 +20,8 @@ class MainWindow(QMainWindow):
 
     def setup_ui(self):
         self.setWindowTitle(f"Client {self.connection.client_id}")
-        number_sections = 3
         self.sections = []
-        for i in range(number_sections):
+        for i in range(NUMBER_OF_SECTIONS):
             section = SectionWidget(self.connection, i + 1)
             self.sections.append(section)
         self.total_text = QTextEdit()

@@ -44,18 +44,6 @@ class SectionWidget(QWidget, Ui_SectionWidget):
         self.edit_button.clicked.connect(self.request_edit)
         self.confirm_button.clicked.connect(self.confirm_edit)
 
-    def on_consume(self, ch, method, properties, body):
-        self.update_ui.emit(str(body, "utf-8"))
-
-    def on_edit_section(self):
-        payload = {
-            "client": self.connection.client_id,
-            "message": self.text_area.toPlainText(),
-        }
-        self.connection.publisher.basic_publish(
-            json.dumps(payload), exchange=self.exchange
-        )
-
     def request_edit(self):
         payload = {"client": self.connection.client_id}
         self.connection.publisher.basic_publish(
@@ -79,6 +67,15 @@ class SectionWidget(QWidget, Ui_SectionWidget):
             )
             self.update_editing_user_on_edit()
 
+    def on_edit_section(self):
+        payload = {
+            "client": self.connection.client_id,
+            "message": self.text_area.toPlainText(),
+        }
+        self.connection.publisher.basic_publish(
+            json.dumps(payload), exchange=self.exchange
+        )
+
     def confirm_edit(self):
         method, properties, body = self.connection.basic_get(
             self.occupied_by_queue, auto_ack=True
@@ -86,7 +83,10 @@ class SectionWidget(QWidget, Ui_SectionWidget):
         if body is not None:
             body_payload = json.loads(str(body, "utf-8"))
             if body_payload["client"] == self.connection.client_id:
-                release_lock_payload = {"client": self.connection.client_id, "lock": False}
+                release_lock_payload = {
+                    "client": self.connection.client_id,
+                    "lock": False,
+                }
                 self.update_editing_user_on_confirm()
                 self.connection.publisher.basic_publish(
                     json.dumps(release_lock_payload), exchange=self.exchange
@@ -107,6 +107,9 @@ class SectionWidget(QWidget, Ui_SectionWidget):
         state = self.edit_button.isEnabled()
         self.edit_button.setEnabled(not state)
         self.confirm_button.setEnabled(state)
+
+    def on_consume(self, ch, method, properties, body):
+        self.update_ui.emit(str(body, "utf-8"))
 
     def on_ui_update(self, payload: str):
         payload = json.loads(payload)

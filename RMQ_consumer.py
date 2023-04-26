@@ -1,9 +1,8 @@
-import threading
-
 import pika
+from PySide6.QtCore import QThread
 
 
-class RMQConsumer(threading.Thread):
+class RMQConsumer(QThread):
     def __init__(self):
         super(RMQConsumer, self).__init__()
         self.connection = pika.BlockingConnection(
@@ -12,7 +11,7 @@ class RMQConsumer(threading.Thread):
         self.channel = self.connection.channel()
 
     def run(self):
-        threading.Thread(target=self.channel.start_consuming, daemon=True).start()
+        self.channel.start_consuming()
 
     def basic_consume(self, queue, callback, auto_ack=True, **args):
         return self.channel.basic_consume(
