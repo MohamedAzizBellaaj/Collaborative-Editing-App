@@ -1,9 +1,9 @@
-import threading
+from PySide6.QtCore import QThread
 
 import pika
 
 
-class RMQConsumer(threading.Thread):
+class RMQConsumer(QThread):
     def __init__(self):
         super(RMQConsumer, self).__init__()
         self.connection = pika.BlockingConnection(
