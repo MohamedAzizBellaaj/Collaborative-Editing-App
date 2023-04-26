@@ -78,7 +78,7 @@ class SectionWidget(QWidget, Ui_SectionWidget):
 
     def confirm_edit(self):
         method, properties, body = self.connection.basic_get(
-            self.occupied_by_queue, auto_ack=True
+            self.occupied_by_queue, auto_ack=False
         )
         if body is not None:
             body_payload = json.loads(str(body, "utf-8"))
@@ -87,10 +87,13 @@ class SectionWidget(QWidget, Ui_SectionWidget):
                     "client": self.connection.client_id,
                     "lock": False,
                 }
+                self.connection.basic_ack(method.delivery_tag)
                 self.update_editing_user_on_confirm()
                 self.connection.publisher.basic_publish(
                     json.dumps(release_lock_payload), exchange=self.exchange
                 )
+            else:
+                self.connection.basic_nack(method.delivery_tag)
 
     def update_editing_user_on_edit(self):
         self.label.setText(f"{self.identifier} occupied by you!")
