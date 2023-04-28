@@ -1,16 +1,16 @@
 import sys
 
+import pika
 import qdarkstyle
 from PySide6.QtWidgets import QApplication
 
 from main_window import MainWindow
-from RMQ_connection import RMQConnection
 
 
 def main():
     app = QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api="pyside6"))
-    connection = RMQConnection()
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host="localhost"))
     main_window = MainWindow(app, connection)
     main_window.show()
 

@@ -1,29 +1,34 @@
+import uuid
+
+from pika import BlockingConnection
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QTextEdit, QVBoxLayout, QWidget
 
-from RMQ_connection import RMQConnection
+from RMQ_subscriber import RMQSubscriber
 from section import SectionWidget
 
 NUMBER_OF_SECTIONS = 3
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, app, connection: RMQConnection):
+    def __init__(self, app, connection: BlockingConnection):
         super().__init__()
         self.app = app
         self.connection = connection
-        self.setup_ui()
+        self.setup()
         for section in self.sections:
             section.update_total_text.connect(self.update_text)
-        self.sections[0].text_area.textChanged.connect(self.update_total_text)
-        self.sections[1].text_area.textChanged.connect(self.update_total_text)
-        self.connection.start_consume()
+            section.text_area.textChanged.connect(self.update_total_text)
 
-    def setup_ui(self):
-        self.setWindowTitle(f"Client {self.connection.client_id}")
+    def setup(self):
+        self.client_id = str(uuid.uuid4())
+        self.setWindowTitle(f"Client {self.client_id}")
         self.sections = []
         for i in range(NUMBER_OF_SECTIONS):
-            section = SectionWidget(self.connection, i + 1)
+            subscriber = RMQSubscriber(self.connection, self.client_id)
+            section = SectionWidget(subscriber, i + 1)
+            section.subscriber.start_consume()
             self.sections.append(section)
+
         self.total_text = QTextEdit()
         self.total_text.setReadOnly(True)
         v_layout = QVBoxLayout()
@@ -54,5 +59,5 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         for section in self.sections:
-            section.clean_up.emit()
+            section.cleanup.emit()
         event.accept()

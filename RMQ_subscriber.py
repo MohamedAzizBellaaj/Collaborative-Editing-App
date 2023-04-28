@@ -1,18 +1,14 @@
-import uuid
-
-import pika
+from pika import BlockingConnection
 from pika.exchange_type import ExchangeType
 
 from RMQ_consumer import RMQConsumer
 from RMQ_publisher import RMQPublisher
 
 
-class RMQConnection:
-    def __init__(self):
-        self.client_id = str(uuid.uuid4())
-        self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host="localhost")
-        )
+class RMQSubscriber:
+    def __init__(self, connection: BlockingConnection, client_id: str):
+        self.client_id = client_id
+        self.connection = connection
         self.channel = self.connection.channel()
         self.publisher = RMQPublisher(self.channel)
         self.consumer = RMQConsumer()
